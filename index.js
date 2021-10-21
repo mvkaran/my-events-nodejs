@@ -1,18 +1,33 @@
+const github = require('@actions/github');
 const core = require('@actions/core');
-const wait = require('./wait');
+const dayjs = require('dayjs');
 
+const advancedFormat = require('dayjs/plugin/advancedFormat')
+dayjs.extend(advancedFormat)
 
 // most @actions toolkit packages have async methods
 async function run() {
   try {
-    const ms = core.getInput('milliseconds');
-    core.info(`Waiting ${ms} milliseconds ...`);
+    const token = core.getInput('token');
+    const octokit = new github.getOctokit(token);
+    const context = github.context;
 
-    core.debug((new Date()).toTimeString()); // debug is only output if you set the secret `ACTIONS_RUNNER_DEBUG` to true
-    await wait(parseInt(ms));
-    core.info((new Date()).toTimeString());
+    const issue = context.payload.issue;
+    const issueTitle = issue.title;
 
-    core.setOutput('time', new Date().toTimeString());
+    // 2021-10-21: Actions Workshop
+    const date = issue.title.substring(0,10);
+    const quarter = dayjs(date).format('Q');
+
+    const label = 'Q' + quarter.toString();
+
+    await octokit.rest.issues.addLabels({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      issue_number: issue.number,
+      labels: [label]
+    });
+
   } catch (error) {
     core.setFailed(error.message);
   }
